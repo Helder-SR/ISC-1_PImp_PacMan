@@ -3,7 +3,8 @@ package Backend
 import Backend.Cases.{Case, DoorCase, EmptyCase, Items, RoadCase, WallCase}
 import Backend.Entities.Ghosts.{Blinky, Clyde, Ghosts, Inky, Pinky}
 import Backend.Entities.Player
-import jdk.jfr.Event
+import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit}
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 class Logical {
@@ -20,9 +21,26 @@ class Logical {
   private var ghostsSpawn: Array[RoadCase] = Array.empty;
   private var itemsSpawn: RoadCase = null;
 
+  private val subscriptions: ArrayBuffer[Logical => Unit] = ArrayBuffer.empty;
+  private val ex: ScheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1);
+  private val task = new Runnable {
+    override def run(): Unit = {
+      notifyListener()
+    }
+  }
+  private val infiniteNotifier = ex.scheduleAtFixedRate(task, 1, 1, TimeUnit.SECONDS)
+
   def Map = map;
   def Player = player;
   def Ghosts: Array[Ghosts] = ghosts;
+
+  def subscribeCycle(callback: Logical => Unit): Unit = {
+    subscriptions += callback;
+  }
+
+  def notifyListener(): Unit = {
+    for(s <- subscriptions) s(this)
+  }
 
   def LoadLevel(map: Array[String]): Unit = {
     this.map = Array.ofDim(map.length, map(0).length);
