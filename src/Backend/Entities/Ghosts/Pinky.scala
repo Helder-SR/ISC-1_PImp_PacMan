@@ -9,3 +9,7 @@ class Pinky extends Ghosts(Color.PINK) {
     // To implement AI motion
   }
 }
+
+object Pinky {
+  val INSTANCE = new Pinky();
+}

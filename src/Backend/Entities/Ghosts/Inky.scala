@@ -9,3 +9,7 @@ class Inky extends Ghosts(Color.BLUE) {
     // To implement AI motion
   }
 }
+
+object Inky {
+  val INSTANCE = new Inky();
+}

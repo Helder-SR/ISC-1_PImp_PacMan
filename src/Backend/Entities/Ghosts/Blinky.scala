@@ -9,3 +9,7 @@ class Blinky extends Ghosts(Color.RED) {
     // To implement AI motion
   }
 }
+
+object Blinky {
+  val INSTANCE = new Blinky();
+}

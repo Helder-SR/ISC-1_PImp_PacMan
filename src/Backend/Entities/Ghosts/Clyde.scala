@@ -9,3 +9,7 @@ class Clyde extends Ghosts(Color.ORANGE) {
     // To implement AI motion
   }
 }
+
+object Clyde {
+  val INSTANCE = new Clyde();
+}
