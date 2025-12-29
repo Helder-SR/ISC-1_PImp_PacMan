@@ -114,13 +114,25 @@ class Logical {
 
   def ChangePlayerDirection(direction: Directions): Unit = {
     val (deltaX, deltaY) = Directions.getDeltaByDirection(direction);
-    val nextCase = map(player.Y + deltaY)(player.X + deltaX)
+    val (nx, ny) = CorrectNextPoint(player.X + deltaX, player.Y + deltaY)
+    if(!IsPointInTheMap(nx, ny)) {
+      println("Cannot change direction for nowhere")
+      return;
+    }
+    val nextCase = map(ny)(nx)
     if(nextCase.CaseType == CaseType.Road) player.ChangeDirection(direction)
     else println("Cannot change direction for a wall")
   }
 
   def IsPointInTheMap(x: Int, y: Int): Boolean = {
     Map.length > y && y >= 0 && Map(0).length > x && x >= 0
+  }
+
+  def CorrectNextPoint(x: Int, y: Int): (Int, Int) = {
+    (
+      if(x >= map(0).length) 0 else if (x < 0) map(0).length-1 else x,
+      if(y >= map.length) 0 else if (y < 0) map.length-1 else y
+    )
   }
 
   private def isCaseIntersection(map: Array[String], x: Int, y: Int): Boolean = {
@@ -149,10 +161,7 @@ class Logical {
     if(!isGamePlaying) return;
     val (deltaX, deltaY) = Directions.getDeltaByDirection(entity.Direction);
 
-    var (nx, ny) = (entity.X + deltaX, entity.Y + deltaY)
-
-    nx = if(nx >= map(0).length) 0 else if (nx < 0) map(0).length-1 else nx
-    ny = if(ny >= map.length) 0 else if (ny < 0) map.length-1 else ny
+    var (nx, ny) = CorrectNextPoint(entity.X + deltaX, entity.Y + deltaY)
 
     if(!IsPointInTheMap(nx, ny)) {
       println("Error, case doesn't exist on the map")
