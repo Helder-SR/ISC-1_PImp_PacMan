@@ -1,12 +1,17 @@
 package Backend.Entities.Ghosts
 
-import Backend.Cases.Case
-import Backend.Entities.Entity
+import Backend.Cases.{CaseType, RoadCase}
+import Backend.Entities.Directions.Directions
+import Backend.Entities.{Directions, Entity}
+import Backend.Logical
 
 import java.awt.Color
 import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit}
+import scala.util.Random
 
 abstract class Ghosts(val MainColor: Color) extends Entity {
+  direction = Directions.Right
+
   protected var isVulnerable: Boolean = false;
   protected var isBlinking: Boolean = false;
   protected var isAlive: Boolean = false;
@@ -43,5 +48,37 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
     isBlinking = false;
   }
 
-  def takeDecision(map: Array[Array[Case]]): Unit;
+  protected var isLastCaseDoor = false;
+  def takeDecision(logical: Logical): Unit = {
+    // DEFAULT MOVEMENT (RANDOM)
+
+    println(s"$this taking decision...")
+    if(!logical.IsPointInTheMap(x, y)) return;
+    val currentCase = logical.Map(y)(x);
+    val isLastADoor = isLastCaseDoor
+    isLastCaseDoor = currentCase.CaseType == CaseType.Door
+    if(isLastCaseDoor) return;
+    if(!currentCase.isInstanceOf[RoadCase]) return;
+    val currentRoad = currentCase.asInstanceOf[RoadCase];
+    if(!isLastADoor && !currentRoad.IsIntersection || currentRoad.isGhostsSpawn) return;
+
+    var dir: Directions = Directions.Right
+    var ny: Int = -1
+    var nx: Int = -1
+    val (dx, dy) = Directions.getDeltaByDirection(Direction)
+    val (lx, ly) = (x-dx, y-dy)
+    do {
+      dir = Directions(Random.nextInt(Directions.maxId))
+      val (deltaX, deltaY) = Directions.getDeltaByDirection(dir);
+      ny = y + deltaY;
+      nx = x + deltaX;
+    } while (
+      !logical.IsPointInTheMap(nx, ny) ||
+        (lx == nx && ly == ny) ||
+        logical.Map(ny)(nx).CaseType != CaseType.Road
+    )
+    direction = dir;
+
+    println(s"$this taked decision $direction")
+  };
 }

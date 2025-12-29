@@ -17,6 +17,7 @@ package Backend.global
 * */
 
 object Levels {
+  val ROAD_CHAR: String = "rdDiPG";
   val Level1: Array[String] = Array(
     "wwwwwwwwwwwwwwwwwwwwwwwwwwww",
     "wddddddddddddwwddddddddddddw",

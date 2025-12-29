@@ -4,6 +4,7 @@ import Backend.Cases.{Case, CaseType, DoorCase, EmptyCase, Items, RoadCase, Wall
 import Backend.Entities.Directions.Directions
 import Backend.Entities.Ghosts.{Blinky, Clyde, Ghosts, Inky, Pinky}
 import Backend.Entities.{Directions, Entity, Player}
+import Backend.global.Levels
 
 import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit}
 import scala.collection.mutable.ArrayBuffer
@@ -33,6 +34,9 @@ class Logical {
     }
   }
   private val infiniteNotifier = ex.scheduleAtFixedRate(task, 1, 1, TimeUnit.SECONDS)
+
+
+  ghosts.foreach(g => subscribeCycle(g.takeDecision))
 
   def Map = map;
   def Player = player;
@@ -64,30 +68,31 @@ class Logical {
         this.map(y)(x) = c match {
           case ' ' => new EmptyCase(x, y);
           case 'w' => new WallCase(x, y);
-          case 'r' => new RoadCase(x, y);
+          case 'r' => new RoadCase(x, y, isCaseIntersection(map, x, y));
           case 'd' => {
-            val d = new RoadCase(x, y);
+            val d = new RoadCase(x, y, isCaseIntersection(map, x, y));
             d.Item = Items.PacDot;
             d
           };
           case 'D' => {
-            val D = new RoadCase(x, y);
+            val D = new RoadCase(x, y, isCaseIntersection(map, x, y));
             D.Item = Items.PowerPellet;
             D
           };
           case 'i' => {
-            val i = new RoadCase(x, y)
+            val i = new RoadCase(x, y, isCaseIntersection(map, x, y))
             itemsSpawn = i;
             i
           };
           case 'v' => new DoorCase(x, y);
           case 'P' => {
-            val P = new RoadCase(x, y);
+            val P = new RoadCase(x, y, isCaseIntersection(map, x, y));
             playerSpawn = P;
             P
           };
           case 'G' => {
-            val G = new RoadCase(x, y)
+            val G = new RoadCase(x, y, isCaseIntersection(map, x, y))
+            G.isGhostsSpawn = true;
             ghostsSpawn :+= G;
             G
           };
@@ -114,6 +119,22 @@ class Logical {
     else println("Cannot change direction for a wall")
   }
 
+  def IsPointInTheMap(x: Int, y: Int): Boolean = {
+    Map.length > y && y >= 0 && Map(0).length > x && x >= 0
+  }
+
+  private def isCaseIntersection(map: Array[String], x: Int, y: Int): Boolean = {
+    var (counterX, counterY) = (0, 0);
+    for(d <- -1 to 1 by 2) {
+      val (nx, ny) = (x+d, y+d)
+      if(map.length > ny && ny >= 0)
+        counterY += (if(Levels.ROAD_CHAR.contains(map(ny)(x))) 1 else 0);
+      if(map(0).length > nx && nx >= 0)
+        counterX += (if(Levels.ROAD_CHAR.contains(map(y)(nx))) 1 else 0);
+    }
+    counterX > 0 && counterY > 0
+  }
+
   subscriptions += calculateFrame;
   private def calculateFrame(logical: Logical): Unit = {
     moveEntity(Player)
@@ -128,7 +149,17 @@ class Logical {
     if(!isGamePlaying) return;
     val (deltaX, deltaY) = Directions.getDeltaByDirection(entity.Direction);
 
-    val nextCase = map(entity.Y + deltaY)(entity.X + deltaX)
+    var (nx, ny) = (entity.X + deltaX, entity.Y + deltaY)
+
+    nx = if(nx >= map(0).length) 0 else if (nx < 0) map(0).length-1 else nx
+    ny = if(ny >= map.length) 0 else if (ny < 0) map.length-1 else ny
+
+    if(!IsPointInTheMap(nx, ny)) {
+      println("Error, case doesn't exist on the map")
+      return;
+    }
+
+    val nextCase = map(ny)(nx)
     val currentCase = map(entity.Y)(entity.X);
 
     if(nextCase.CaseType == CaseType.Road || (isGhosts && nextCase.CaseType == CaseType.Door)) {
