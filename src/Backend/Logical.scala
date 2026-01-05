@@ -264,14 +264,13 @@ class Logical {
 
   private def calculateItemSpawn(): Unit = {
     if(itemsSpawn == null) return;
-    // if(pacDotEatenCounter == 70 || pacDotEatenCounter == 170){
-    if(pacDotEatenCounter == 10 || pacDotEatenCounter == 20){
+    if(itemsSpawn.Item == Items.None && (pacDotEatenCounter == 70 || pacDotEatenCounter == 170)){
       itemsSpawn.Item = nextItem;
     }
   }
 
   private def itemEatenEvent() {
-    var nxtItm = nextItem.id+1
+    val nxtItm = nextItem.id + 1
     if(nxtItm >= Items.maxId) return;
     nextItem = Items(nxtItm)
   }
