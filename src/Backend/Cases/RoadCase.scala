@@ -19,10 +19,18 @@ class RoadCase(posX: Int, posY: Int, val IsIntersection: Boolean = false) extend
         else "U"
       else "?"
     else Item match {
-      case Items.PacDot => ".";
-      case Items.PowerPellet => "•";
-      // TO DO : Implement fruits
-      case _ => " ";
+      case Items.PacDot       => "."
+      case Items.PowerPellet  => "•"
+      case Items.Cherry       => "🍒"
+      case Items.Strawberry   => "🍓"
+      case Items.Orange       => "🍊"
+      case Items.Apple        => "🍎"
+      case Items.Melon        => "🍈"
+      case Items.Galaxian     => "🛸" // Le Galaxian Boss est souvent représenté ainsi
+      case Items.Bell         => "🔔"
+      case Items.Key          => "🔑"
+      case Items.None         => " "
+      case _                  => " "
     }
   };
 }

@@ -11,6 +11,8 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 class Logical {
+  val GAME_SPEED_FRAME_MS = 1000
+
   private var map: Array[Array[Case]] = Array.empty;
   private val player = new Player;
   private val ghosts = Array(
@@ -40,7 +42,7 @@ class Logical {
       startGame()
     }
   }
-  mainLoopThreadExecutor.scheduleAtFixedRate(task, 1, 1, TimeUnit.SECONDS)
+  mainLoopThreadExecutor.scheduleAtFixedRate(task, GAME_SPEED_FRAME_MS, GAME_SPEED_FRAME_MS, TimeUnit.MILLISECONDS)
 
   ghosts.foreach(g => subscribeCycle(g.takeDecision))
 
@@ -76,6 +78,8 @@ class Logical {
       resetEntityPosition(g, ghostsSpawn(Random.nextInt(ghostsSpawn.length)))
       g.revive
     })
+
+    if(itemsSpawn != null) itemsSpawn.Item = Items.None
   }
 
   def LoadLevel(map: Array[String]): Unit = {
@@ -176,6 +180,8 @@ class Logical {
       pauseGame();
       mainLoopThreadExecutor.schedule(resetPositionTask, 5, TimeUnit.SECONDS)
     }
+    // Game flow
+    calculateItemSpawn()
     // LAB
     ChangePlayerDirection(Directions(Random.nextInt(Directions.maxId)));
   }
@@ -211,6 +217,8 @@ class Logical {
     val currentRoad = currentCase.asInstanceOf[RoadCase]
     player.addScore(Items.GetValue(currentRoad.Item));
     if(currentRoad.Item == Items.PowerPellet) makeGhostsVulnarable()
+    else if(currentRoad.Item == Items.PacDot) pacDotEatenCounter += 1
+    else if(currentRoad.Item.id >= Items.Cherry.id && currentRoad.Item.id <= Items.Key.id) itemEatenEvent()
     currentRoad.Item = Items.None;
   }
 
@@ -248,5 +256,23 @@ class Logical {
     }
     cse.Entities += entity;
     cse.definePositionOf(entity)
+  }
+
+  // Items section
+  private var pacDotEatenCounter = 0;
+  private var nextItem = Items.Cherry;
+
+  private def calculateItemSpawn(): Unit = {
+    if(itemsSpawn == null) return;
+    // if(pacDotEatenCounter == 70 || pacDotEatenCounter == 170){
+    if(pacDotEatenCounter == 10 || pacDotEatenCounter == 20){
+      itemsSpawn.Item = nextItem;
+    }
+  }
+
+  private def itemEatenEvent() {
+    var nxtItm = nextItem.id+1
+    if(nxtItm >= Items.maxId) return;
+    nextItem = Items(nxtItm)
   }
 }
