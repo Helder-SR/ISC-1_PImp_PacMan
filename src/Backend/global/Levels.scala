@@ -51,4 +51,15 @@ object Levels {
     "wddddddddddddddddddddddddddw",
     "wwwwwwwwwwwwwwwwwwwwwwwwwwww"
   )
+
+  var LabLevel: Array[String] = Array(
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "dddddddddddddddddddddddddddd",
+    "wdwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wdwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "wdwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "dddddddddddddiddddddddddddPd",
+    "wwwwwwwwwwwwwwwwwwwwwwwwwwww",
+    "DdDdGGGGDdDdDdDdDdDdDdDdDdDd"
+  )
 }
