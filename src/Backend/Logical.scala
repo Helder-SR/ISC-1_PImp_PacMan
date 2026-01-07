@@ -193,8 +193,6 @@ class Logical {
     }
     // Game flow
     calculateItemSpawn()
-    // LAB
-    ChangePlayerDirection(Directions(Random.nextInt(Directions.maxId)));
   }
 
   private def moveEntity(entity: Entity, isGhosts: Boolean = false): Unit = {
