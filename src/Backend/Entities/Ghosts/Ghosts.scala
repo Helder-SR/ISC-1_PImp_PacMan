@@ -1,12 +1,13 @@
 package Backend.Entities.Ghosts
 
-import Backend.Cases.{CaseType, RoadCase}
+import Backend.Cases.{Case, CaseType, RoadCase}
 import Backend.Entities.Directions.Directions
 import Backend.Entities.{Directions, Entity}
 import Backend.Logical
 
 import java.awt.Color
 import java.util.concurrent.{ScheduledFuture, ScheduledThreadPoolExecutor, TimeUnit}
+import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 abstract class Ghosts(val MainColor: Color) extends Entity {
@@ -14,6 +15,9 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
 
   protected var isVulnerable: Boolean = false;
   protected var isBlinking: Boolean = false;
+
+  private var wayToHome: Array[Array[Int]] = Array.empty
+  private var isWayToHomeCalculated = false;
 
   def IsVulnerable = isVulnerable;
   def IsBlinking = isBlinking;
@@ -34,7 +38,10 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
     }
   }
 
-
+  override def revive: Unit = {
+    super.revive
+    isWayToHomeCalculated = false;
+  }
 
   def makeVulnerable(): Unit = {
     // TO DO : Dynamic calcul timing of vulnerability
@@ -57,6 +64,10 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
   def takeDecision(logical: Logical): Unit = {
     // DEFAULT MOVEMENT (RANDOM)
 
+    if(!IsAlive && !checkRevive(logical)) {
+      goHome(logical)
+      return;
+    }
     println(s"$this taking decision...")
     if(!logical.IsPointInTheMap(x, y)) return;
     val currentCase = logical.Map(y)(x);
@@ -90,4 +101,91 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
 
     println(s"$this taked decision $direction")
   };
+
+  def checkRevive(logical: Logical): Boolean = {
+    logical.Map(Y)(X) match {
+      case roadCase: RoadCase if roadCase.isGhostsSpawn =>
+        revive
+        return true
+      case _ =>
+        return false
+    }
+  }
+
+  def goHome(logical: Logical): Unit = {
+    if(!isWayToHomeCalculated) foundPathToHome(logical)
+    val (current, up, down, left, right) = (
+      wayToHome(Y)(X),
+      wayToHome(Y-1)(X),
+      wayToHome(Y+1)(X),
+      wayToHome(Y)(X-1),
+      wayToHome(Y)(X+1)
+    )
+
+    direction = (
+      if(up < current) Directions.Up
+      else if (down < current) Directions.Down
+      else if (left < current) Directions.Left
+      else if (right < current) Directions.Right
+      else direction
+    )
+  }
+
+  def foundPathToHome(logical: Logical): Unit = {
+    var isPathFound = false
+    val (mapHeight, mapWidth) = (logical.Map.length, logical.Map(0).length);
+    wayToHome  = Array.fill(mapHeight, mapWidth)(500)
+    var lastCases: ArrayBuffer[Case] = ArrayBuffer.empty;
+    var idx = 0;
+    logical.GhostsSpawn.foreach(s => {
+      wayToHome(s.Y)(s.X) = idx;
+      lastCases += s;
+    })
+
+    do {
+      idx += 1;
+      val lstCases = lastCases.clone()
+      lastCases = ArrayBuffer.empty;
+      lstCases.foreach(c => {
+        for(i <- -1 to 1 by 2) {
+          // vertical
+          val (vx, vy) = (c.X, c.Y + i)
+          if(
+            vy >= 0 && vy < mapHeight &&
+            vx >= 0 && vx < mapWidth &&
+              wayToHome(vy)(vx) > idx &&
+            (
+              logical.Map(vy)(vx).CaseType == CaseType.Road ||
+              logical.Map(vy)(vx).CaseType == CaseType.Door
+            )
+          ) {
+            wayToHome(vy)(vx) = idx
+            lastCases += logical.Map(vy)(vx)
+            if(vy == Y && vx == X) {
+              isPathFound = true
+            }
+          }
+          // horizontal
+          val (hx, hy) = (c.X+i, c.Y)
+          if(
+            hy >= 0 && hy < mapHeight &&
+            hx >= 0 && hx < mapWidth &&
+            wayToHome(hy)(hx) > idx &&
+            (
+              logical.Map(hy)(hx).CaseType == CaseType.Road ||
+              logical.Map(hy)(hx).CaseType == CaseType.Door
+            )
+          ) {
+            wayToHome(hy)(hx) = idx
+            lastCases += logical.Map(hy)(hx)
+            if(hy == Y && hx == X) {
+              isPathFound = true
+            }
+          }
+        }
+      })
+    }while(!isPathFound && idx < (mapHeight * mapWidth))
+    isWayToHomeCalculated=true
+  }
+
 }

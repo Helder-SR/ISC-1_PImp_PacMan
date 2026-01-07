@@ -50,6 +50,8 @@ class Logical {
   def Player = player;
   def Ghosts: Array[Ghosts] = ghosts;
 
+  def GhostsSpawn: Array[RoadCase] = ghostsSpawn;
+
   def IsGamePlaying = isGamePlaying;
 
   def subscribeCycle(callback: Logical => Unit): Unit = {
@@ -234,13 +236,13 @@ class Logical {
     Ghosts.foreach(g => {
       if(cx == g.X && cy == g.Y) {
         if(g.IsVulnerable) g.kill;
-        else Player.kill;
+        else if(g.IsAlive) Player.kill;
       } else if (lx == g.X && ly == g.Y) {
         val (dgx, dgy) = Directions.getDeltaByDirection(g.Direction)
         val (lgx, lgy) = CorrectPoint(g.X - dgx, g.Y - dgy)
         if(lgx == cx && lgy == cy) {
           if(g.IsVulnerable) g.kill;
-          else Player.kill;
+          else if(g.IsAlive) Player.kill;
         }
       }
     })
