@@ -4,17 +4,23 @@ import hevs.graphics.FunGraphics
 import java.awt.Color
 import java.awt.event.{KeyAdapter, KeyEvent}
 import Backend.Logical
+import Backend.Cases._
 import Backend.Entities.Directions
+import Backend.Cases.Items // Assure-toi que l'objet Items est bien accessible
 
 class GameRenderer(logical: Logical) {
+  // Taille d'une case en pixels
   val CELL_SIZE = 30
+
+  // On récupère la taille de la map depuis la logique
+  // Attention: logical.Map peut être vide avant le chargement du niveau
+  // On initialise FunGraphics plus tard ou on suppose que le niveau est chargé avant l'instanciation
   val mapHeight = logical.Map.length
   val mapWidth = logical.Map(0).length
 
-  // Fenêtre un peu plus haute pour afficher le score
-  val display = new FunGraphics(mapWidth * CELL_SIZE, mapHeight * CELL_SIZE + 50, "Pac-Man Graphique")
+  val display = new FunGraphics(mapWidth * CELL_SIZE, mapHeight * CELL_SIZE + 40, "Pac-Man Scala")
 
-  // --- Gestion Clavier (Identique) ---
+  // --- Gestion du Clavier ---
   display.setKeyManager(new KeyAdapter {
     override def keyPressed(e: KeyEvent): Unit = {
       val newDir = e.getKeyCode match {
@@ -24,83 +30,104 @@ class GameRenderer(logical: Logical) {
         case KeyEvent.VK_RIGHT => Some(Directions.Right)
         case _ => None
       }
-      if(newDir.isDefined) logical.ChangePlayerDirection(newDir.get)
+
+      // On envoie la demande de changement à la logique
+      if(newDir.isDefined) {
+        logical.ChangePlayerDirection(newDir.get)
+      }
     }
   })
-
-  // --- Rendu basé sur les caractères (toString) ---
+  // --- Méthode de dessin appelée par la Logique ---
+  // Cette signature correspond au type attendu par logical.subscribeCycle
   def render(game: Logical): Unit = {
+    // 1. Reset écran (Synchronisation du dessin pour éviter le scintillement)
     display.frontBuffer.synchronized {
-      // Fond noir
       display.setColor(Color.BLACK)
       display.drawFillRect(0, 0, display.getFrameWidth, display.getFrameHeight)
 
+      // 2. Dessiner la Grille
       for (y <- 0 until mapHeight) {
         for (x <- 0 until mapWidth) {
           val currentCase = game.Map(y)(x)
-          // C'est ici que la magie opère : on récupère le caractère (ex: "#", "o", ".")
-          val symbol = currentCase.toString.trim
-
-          drawSymbol(symbol, x, y)
+          drawCase(currentCase, x, y)
         }
       }
 
-      // Afficher le score (si tu as une variable score dans logical.Player)
-      display.setColor(Color.WHITE)
-      display.drawString(10, mapHeight * CELL_SIZE + 30, s"Score: ${game.Player.Score}") // Suppose que Player a un champ Score
+      // 3. Dessiner les Fantômes
+      for (ghost <- game.Ghosts) {
+        // Logique de couleur selon l'état du fantôme
+        var ghostColor = ghost.MainColor
+
+        if (ghost.IsVulnerable) {
+          ghostColor = Color.BLUE // Vulnérable = Bleu
+          if (ghost.IsBlinking) {
+            ghostColor = Color.WHITE // Clignote avant la fin = Blanc
+          }
+        }
+
+        drawEntity(ghost.X, ghost.Y, ghostColor, isRound = false) // isRound=false -> forme fantome
+      }
+
+      // 4. Dessiner Pacman
+      if (game.Player.IsAlive) {
+        drawEntity(game.Player.X, game.Player.Y, Color.YELLOW, isRound = true)
+      }
+
+      // 5. Game Over / Score (Optionnel)
+      if (!game.IsGamePlaying) {
+        display.setColor(Color.RED)
+        display.drawString(10, mapHeight * CELL_SIZE + 20, "PAUSE / GAME OVER")
+      }
     }
   }
 
-  def drawSymbol(symbol: String, x: Int, y: Int): Unit = {
+  // Helper pour dessiner une case
+  private def drawCase(c: Case, x: Int, y: Int): Unit = {
     val px = x * CELL_SIZE
     val py = y * CELL_SIZE
-    val centerX = px + CELL_SIZE / 2
-    val centerY = py + CELL_SIZE / 2
 
-    symbol match {
-      case "#" => // MUR
-        display.setColor(Color.BLUE)
+    c.CaseType match {
+      case CaseType.Wall =>
+        display.setColor(new Color(33, 33, 222)) // Bleu Arcade
         display.drawFillRect(px, py, CELL_SIZE, CELL_SIZE)
         display.setColor(Color.BLACK)
-        display.drawRect(px + 5, py + 5, CELL_SIZE - 10, CELL_SIZE - 10)
+        display.drawRect(px + 4, py + 4, CELL_SIZE - 8, CELL_SIZE - 8) // Effet de bord
 
-      case "." => // PETIT POINT (PacDot)
-        display.setColor(new Color(255, 184, 174)) // Rose pâle
-        display.drawFillRect(centerX - 2, centerY - 2, 4, 4)
+      case CaseType.Door =>
+        display.setColor(Color.PINK)
+        display.drawFillRect(px, py + (CELL_SIZE / 2) - 2, CELL_SIZE, 4)
 
-      case "•" => // GROS POINT (PowerPellet) - Copie ce symbole depuis ta console
-        display.setColor(new Color(255, 184, 174))
-        display.drawFilledOval(centerX - 8, centerY - 8, 16, 16)
+      case CaseType.Road =>
+        // Vérification des Items sur la route
+        val road = c.asInstanceOf[RoadCase]
+        road.Item match {
+          case Items.PacDot =>
+            display.setColor(new Color(255, 184, 174)) // Couleur saumon/points
+            display.drawFillRect(px + CELL_SIZE/2 - 2, py + CELL_SIZE/2 - 2, 4, 4)
+          case Items.PowerPellet =>
+            display.setColor(new Color(255, 184, 174))
+            display.drawFilledOval(px + CELL_SIZE/2 - 6, py + CELL_SIZE/2 - 6, 12, 12)
+          case _ => // Rien (Items.None)
+        }
 
-      case "o" => // PACMAN
-        display.setColor(Color.YELLOW)
-        display.drawFilledOval(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4)
-      // (Optionnel) Tu pourrais dessiner une bouche ici selon la direction
-
-      case "U" => // FANTÔME (Normal)
-        display.setColor(Color.RED) // Par défaut Rouge car toString ne donne pas la couleur
-        drawGhostShape(px, py, Color.RED)
-
-      case "X" => // FANTÔME (Vulnérable)
-        drawGhostShape(px, py, Color.BLUE)
-
-      case "Y" => // FANTÔME (Clignotant)
-        drawGhostShape(px, py, Color.WHITE)
-
-      case "G" => // SPAWN FANTÔME (Si visible)
-        // Rien ou un petit carré debug
-        display.setColor(Color.DARK_GRAY)
-        display.drawRect(px, py, CELL_SIZE, CELL_SIZE)
-
-      case _ =>
-      // Espace vide ou inconnu : on ne dessine rien (noir)
+      case CaseType.Empty =>
+      // Noir
     }
   }
 
-  // Petite fonction utilitaire pour dessiner un fantôme
-  def drawGhostShape(px: Int, py: Int, c: Color): Unit = {
-    display.setColor(c)
-    display.drawFilledOval(px + 4, py + 4, CELL_SIZE - 8, CELL_SIZE - 8)
-    display.drawFillRect(px + 4, py + CELL_SIZE/2, CELL_SIZE - 8, CELL_SIZE/2 - 4)
+  // Helper pour dessiner une entité
+  private def drawEntity(x: Int, y: Int, color: Color, isRound: Boolean): Unit = {
+    val px = x * CELL_SIZE
+    val py = y * CELL_SIZE
+
+    display.setColor(color)
+    if (isRound) {
+      // Pacman
+      display.drawFilledOval(px + 2, py + 2, CELL_SIZE - 4, CELL_SIZE - 4)
+    } else {
+      // Fantôme (Dôme + bas carré)
+      display.drawFilledOval(px + 4, py + 4, CELL_SIZE - 8, CELL_SIZE - 8)
+      display.drawFillRect(px + 4, py + (CELL_SIZE/2), CELL_SIZE - 8, (CELL_SIZE/2) - 2)
+    }
   }
 }
