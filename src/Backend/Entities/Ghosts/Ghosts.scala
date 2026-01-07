@@ -13,8 +13,8 @@ import scala.util.Random
 abstract class Ghosts(val MainColor: Color) extends Entity {
   direction = Directions.Up
 
-  protected var isVulnerable: Boolean = false;
-  protected var isBlinking: Boolean = false;
+  private var isVulnerable: Boolean = false;
+  private var isBlinking: Boolean = false;
 
   private var wayToHome: Array[Array[Int]] = Array.empty
   private var isWayToHomeCalculated = false;
@@ -61,13 +61,13 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
   }
 
   protected var isLastCaseDoor = false;
-  def takeDecision(logical: Logical): Unit = {
-    // DEFAULT MOVEMENT (RANDOM)
+  final def takeDecision(logical: Logical): Unit = {
+    if(!IsAlive && !checkRevive(logical)) goHome(logical)
+    else computeAI(logical)
+  };
 
-    if(!IsAlive && !checkRevive(logical)) {
-      goHome(logical)
-      return;
-    }
+  protected def computeAI(logical: Logical): Unit = {
+    // DEFAULT MOVEMENT (RANDOM)
     println(s"$this taking decision...")
     if(!logical.IsPointInTheMap(x, y)) return;
     val currentCase = logical.Map(y)(x);
@@ -106,9 +106,9 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
     logical.Map(Y)(X) match {
       case roadCase: RoadCase if roadCase.isGhostsSpawn =>
         revive
-        return true
+        true
       case _ =>
-        return false
+        false
     }
   }
 
@@ -122,13 +122,11 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
       wayToHome(Y)(X+1)
     )
 
-    direction = (
-      if(up < current) Directions.Up
+    direction = if(up < current) Directions.Up
       else if (down < current) Directions.Down
       else if (left < current) Directions.Left
       else if (right < current) Directions.Right
       else direction
-    )
   }
 
   def foundPathToHome(logical: Logical): Unit = {
