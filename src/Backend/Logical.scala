@@ -6,12 +6,12 @@ import Backend.Entities.Ghosts.{Blinky, Clyde, Ghosts, Inky, Pinky}
 import Backend.Entities.{Directions, Entity, Player}
 import Backend.global.Levels
 
-import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit}
+import java.util.concurrent.{ScheduledFuture, ScheduledThreadPoolExecutor, TimeUnit}
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
 class Logical {
-  val GAME_SPEED_FRAME_MS = 1000
+  val GAME_SPEED_FRAME_MS = 100
 
   private var map: Array[Array[Case]] = Array.empty;
   private val player = new Player;
@@ -181,13 +181,13 @@ class Logical {
 
   subscriptions += calculateFrame;
   private def calculateFrame(logical: Logical): Unit = {
-    if(isDirectionWaiting) ChangePlayerDirection(nextDirection);
+    if (isDirectionWaiting) ChangePlayerDirection(nextDirection);
     moveEntity(Player)
     ghosts.foreach(g => moveEntity(g, true))
     eatCaseByPlayer()
     checkColision()
 
-    if(!player.IsAlive) {
+    if (!player.IsAlive) {
       pauseGame();
       mainLoopThreadExecutor.schedule(resetPositionTask, 5, TimeUnit.SECONDS)
     }
@@ -233,8 +233,30 @@ class Logical {
     currentRoad.Item = Items.None;
   }
 
+  private var ghostsEated = 0;
+
+  private val makeBlinkThreadExecutor: ScheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1);
+  private var currentMakeBlinkTask: Option[ScheduledFuture[_]] = None;
+  private val makeBlinkTask = new Runnable {
+    override def run(): Unit = {
+      ghosts.foreach(g => g.makeBlinking())
+    }
+  }
+  private val resetVulnerableThreadExecutor: ScheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1);
+  private var currentResetVulnerabilityTask: Option[ScheduledFuture[_]] = None;
+  private val resetVulnerabilityTask = new Runnable {
+    override def run(): Unit = {
+      ghosts.foreach(g => g.resetVulnerability())
+      ghostsEated = 0;
+    }
+  }
+
   private def makeGhostsVulnarable(): Unit = {
+    if(currentResetVulnerabilityTask.isDefined) currentResetVulnerabilityTask.get.cancel(true)
+    if(currentMakeBlinkTask.isDefined) currentMakeBlinkTask.get.cancel(true)
     ghosts.foreach(g => g.makeVulnerable())
+    currentMakeBlinkTask = Some(makeBlinkThreadExecutor.schedule(makeBlinkTask, 5, TimeUnit.SECONDS))
+    currentResetVulnerabilityTask = Some(resetVulnerableThreadExecutor.schedule(resetVulnerabilityTask, 10, TimeUnit.SECONDS))
   }
 
   private def checkColision(): Unit = {
@@ -243,19 +265,24 @@ class Logical {
     val (lx, ly) = CorrectPoint(Player.X - dx, Player.Y - dy)
 
     Ghosts.foreach(g => {
-      if(cx == g.X && cy == g.Y) {
-        if(g.IsVulnerable) g.kill;
-        else if(g.IsAlive) Player.kill;
+      if(cx == g.X && cy == g.Y && g.IsAlive) {
+        if(g.IsVulnerable) killGhosts(g)
+        else Player.kill;
       } else if (lx == g.X && ly == g.Y) {
         val (dgx, dgy) = Directions.getDeltaByDirection(g.Direction)
         val (lgx, lgy) = CorrectPoint(g.X - dgx, g.Y - dgy)
-        if(lgx == cx && lgy == cy) {
-          if(g.IsVulnerable) g.kill;
-          else if(g.IsAlive) Player.kill;
+        if(lgx == cx && lgy == cy && g.IsAlive) {
+          if(g.IsVulnerable) killGhosts(g);
+          else Player.kill;
         }
       }
     })
+  }
 
+  private def killGhosts(ghosts: Ghosts): Unit = {
+    ghosts.kill
+    ghostsEated += 1;
+    player.addScore(math.pow(2, ghostsEated).toInt * 100)
   }
 
   private def resetEntityPosition(entity: Entity, cse: Case): Unit = {

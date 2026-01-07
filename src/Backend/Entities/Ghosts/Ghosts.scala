@@ -6,7 +6,6 @@ import Backend.Entities.{Directions, Entity}
 import Backend.Logical
 
 import java.awt.Color
-import java.util.concurrent.{ScheduledFuture, ScheduledThreadPoolExecutor, TimeUnit}
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random
 
@@ -22,37 +21,20 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
   def IsVulnerable = isVulnerable;
   def IsBlinking = isBlinking;
 
-  private val makeBlinkThreadExecutor: ScheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1);
-  private var currentMakeBlinkTask: Option[ScheduledFuture[_]] = None;
-  private val makeBlinkTask = new Runnable {
-    override def run(): Unit = {
-      if(IsVulnerable)
-        isBlinking = true
-    }
-  }
-  private val resetVulnerableThreadExecutor: ScheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1);
-  private var currentResetVulnerabilityTask: Option[ScheduledFuture[_]] = None;
-  private val resetVulnerabilityTask = new Runnable {
-    override def run(): Unit = {
-      resetVulnerability();
-    }
-  }
-
-  override def revive: Unit = {
+  final override def revive: Unit = {
     super.revive
     isWayToHomeCalculated = false;
+    resetVulnerability()
+  }
+
+  def makeBlinking(): Unit = {
+    if(IsVulnerable)
+      isBlinking = true
   }
 
   def makeVulnerable(): Unit = {
-    // TO DO : Dynamic calcul timing of vulnerability
-    if(isVulnerable) {
-      if(currentResetVulnerabilityTask.isDefined) currentResetVulnerabilityTask.get.cancel(true)
-      if(currentMakeBlinkTask.isDefined) currentMakeBlinkTask.get.cancel(true)
-    }
     isVulnerable = true;
     isBlinking = false;
-    currentMakeBlinkTask = Some(makeBlinkThreadExecutor.schedule(makeBlinkTask, 5, TimeUnit.SECONDS))
-    currentResetVulnerabilityTask = Some(resetVulnerableThreadExecutor.schedule(resetVulnerabilityTask, 10, TimeUnit.SECONDS))
   }
 
   def resetVulnerability(): Unit = {
