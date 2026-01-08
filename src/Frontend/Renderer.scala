@@ -112,13 +112,31 @@ class Renderer(logical: Logical) {
         drawSprite(SpriteManager.getSprite("door"), x, y)
       case CaseType.Road =>
         val road = c.asInstanceOf[RoadCase]
+        var name = ""
         road.Item match {
           case Items.PacDot =>
-            drawSprite(SpriteManager.getSprite("pacdot"), x, y)
+            name = "pacdot"
           case Items.PowerPellet =>
-            drawSprite(SpriteManager.getSprite("powerpellet"), x, y)
+            name = "powerpellet"
+          case Items.Cherry =>
+            name = "blinking"
+          case Items.Strawberry =>
+            name = "strawberry"
+          case Items.Orange =>
+            name = "orange"
+          case Items.Apple =>
+            name = "apple"
+          case Items.Melon =>
+            name = "apple"
+          case Items.Galaxian =>
+            name = "apple"
+          case Items.Bell =>
+            name = "apple"
+          case Items.Key =>
+            name = "apple"
           case _ =>
         }
+        if(name != "") drawSprite(SpriteManager.getSprite(name), x, y)
       case CaseType.Empty =>
     }
   }
