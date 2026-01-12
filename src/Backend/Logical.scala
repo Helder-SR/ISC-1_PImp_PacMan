@@ -23,6 +23,8 @@ class Logical {
   );
 
   private var isGamePlaying = false;
+  private var isGameOver = false
+  private var totalPacDots: Int = 0;
 
   private var isDirectionWaiting = false;
   private var nextDirection = Directions.Up;
@@ -56,6 +58,7 @@ class Logical {
   def GhostsSpawn: Array[RoadCase] = ghostsSpawn;
 
   def IsGamePlaying = isGamePlaying;
+  def IsGameOver = isGameOver
 
   def subscribeCycle(callback: Logical => Unit): Unit = {
     subscriptions += callback;
@@ -90,6 +93,9 @@ class Logical {
   def LoadLevel(map: Array[String]): Unit = {
     this.map = Array.ofDim(map.length, map(0).length);
 
+    pacDotEatenCounter = 0
+    totalPacDots = 0
+
     for((l, y) <- map.zipWithIndex) {
       for((c, x) <- l.zipWithIndex) {
         this.map(y)(x) = c match {
@@ -99,6 +105,7 @@ class Logical {
           case 'd' => {
             val d = new RoadCase(x, y, isCaseIntersection(map, x, y));
             d.Item = Items.PacDot;
+            totalPacDots += 1
             d
           };
           case 'D' => {
@@ -193,6 +200,7 @@ class Logical {
       if (player.Lives > 0) {
         mainLoopThreadExecutor.schedule(resetPositionTask, 5, TimeUnit.SECONDS)
       } else {
+        isGameOver = true
         println("GAME OVER")
       }
     }
@@ -231,7 +239,13 @@ class Logical {
     val currentRoad = currentCase.asInstanceOf[RoadCase]
     player.addScore(Items.GetValue(currentRoad.Item));
     if(currentRoad.Item == Items.PowerPellet) makeGhostsVulnarable()
-    else if(currentRoad.Item == Items.PacDot) pacDotEatenCounter += 1
+    else if(currentRoad.Item == Items.PacDot) {
+      pacDotEatenCounter += 1
+      if(pacDotEatenCounter >= totalPacDots){
+        isGameOver = true
+        println("VICTORY!")
+      }
+    }
     else if(currentRoad.Item.id >= Items.Cherry.id && currentRoad.Item.id <= Items.Key.id) itemEatenEvent()
     currentRoad.Item = Items.None;
   }
