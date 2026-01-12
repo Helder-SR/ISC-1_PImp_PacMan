@@ -209,9 +209,14 @@ class Logical {
     eatCaseByPlayer()
     checkColision()
 
-    if (!player.IsAlive) {
+    if (!player.IsAlive && isGamePlaying) {
       pauseGame();
-      resetThreadExecutor.schedule(resetPositionTask, 5, TimeUnit.SECONDS)
+      player.loseLife()
+      if (player.Lives > 0) {
+        resetThreadExecutor.schedule(resetPositionTask, 5, TimeUnit.SECONDS)
+      } else {
+        println("GAME OVER")
+      }
     }
     // Game flow
     calculateItemSpawn()
@@ -288,7 +293,7 @@ class Logical {
     Ghosts.foreach(g => {
       if(cx == g.X && cy == g.Y && g.IsAlive) {
         if(g.IsVulnerable) killGhosts(g)
-        else Player.kill;
+        else Player.kill
       } else if (lx == g.X && ly == g.Y) {
         val (dgx, dgy) = Directions.getDeltaByDirection(g.Direction)
         val (lgx, lgy) = CorrectPoint(g.X - dgx, g.Y - dgy)
