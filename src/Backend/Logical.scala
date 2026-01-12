@@ -65,7 +65,7 @@ class Logical {
   }
 
   def notifyListener(): Unit = {
-    for(s <- subscriptions) s(this)
+    if(!this.map.isEmpty) for(s <- subscriptions) s(this)
   }
 
   def startGame() = resumeGame()
@@ -92,11 +92,11 @@ class Logical {
 
   def LoadLevel(map: Array[String]): Unit = {
     currentMap = map;
-    this.map = Array.ofDim(map.length, map(0).length);
+    val l_map = Array.ofDim[Case](map.length, map(0).length);
 
     for((l, y) <- map.zipWithIndex) {
       for((c, x) <- l.zipWithIndex) {
-        this.map(y)(x) = c match {
+        l_map(y)(x) = c match {
           case ' ' => new EmptyCase(x, y);
           case 'w' => new WallCase(x, y);
           case 'r' => new RoadCase(x, y, isCaseIntersection(map, x, y));
@@ -134,7 +134,7 @@ class Logical {
     if(player == null) throw new Exception("No spawn for the player in the level!")
     if(player.X != -1 || player.Y != -1) {
       try {
-        val cs = map(player.Y)(player.X).asInstanceOf[RoadCase]
+        val cs = l_map(player.Y)(player.X).asInstanceOf[RoadCase]
         cs.Entities.remove(cs.Entities.indexOf(player))
       }catch {
         case e: Exception => println(e.getMessage)
@@ -148,7 +148,7 @@ class Logical {
       g.revive
       if(g.X != -1 || g.Y != -1) {
         try {
-          val cs = map(g.Y)(g.X).asInstanceOf[RoadCase]
+          val cs = l_map(g.Y)(g.X).asInstanceOf[RoadCase]
           cs.Entities.remove(cs.Entities.indexOf(player))
         }catch {
           case e: Exception => println(e.getMessage)
@@ -158,6 +158,7 @@ class Logical {
       spw.Entities += g;
       g.definePosition(spw.X, spw.Y)
     }
+    this.map = l_map;
     pacDotEatenCounter = 0
   }
 
