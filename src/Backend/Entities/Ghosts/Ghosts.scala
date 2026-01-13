@@ -7,6 +7,7 @@ import Backend.Logical
 
 import java.awt.Color
 import scala.collection.mutable.ArrayBuffer
+import scala.math.{pow, sqrt}
 import scala.util.Random
 
 abstract class Ghosts(val MainColor: Color) extends Entity {
@@ -42,6 +43,11 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
     isBlinking = false;
   }
 
+  // Will get the target case based on the ghost behavior
+  def getTarget(logical: Logical): (Int, Int) ={
+    (logical.Player.X, logical.Player.Y)
+  }
+
   protected var isLastCaseDoor = false;
   final def takeDecision(logical: Logical): Unit = {
     if(!IsAlive && !checkRevive(logical)) goHome(logical)
@@ -60,28 +66,34 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
     val currentRoad = currentCase.asInstanceOf[RoadCase];
     if(!isLastADoor && !currentRoad.IsIntersection && !currentRoad.isGhostsSpawn) return;
 
-    var dir: Directions = Directions.Right
-    var ny: Int = -1
-    var nx: Int = -1
-    val (dx, dy) = Directions.getDeltaByDirection(Direction)
-    val (lx, ly) = (x-dx, y-dy)
-    do {
-      dir = Directions(Random.nextInt(Directions.maxId))
-      val (deltaX, deltaY) = Directions.getDeltaByDirection(dir);
-      ny = y + deltaY;
-      nx = x + deltaX;
-    } while (
-      !logical.IsPointInTheMap(nx, ny) ||
-      (lx == nx && ly == ny) ||
-      !(
-        logical.Map(ny)(nx).CaseType == CaseType.Road ||
-        logical.Map(ny)(nx).CaseType == CaseType.Door &&
-        currentRoad.isGhostsSpawn
-      )
-    )
-    direction = dir;
+    val (targetX, targetY) = getTarget(logical)
+    val distanceMap = createDistanceMap(logical, targetX, targetY)
+
+    var bestDirection: Directions = direction
+    var minDistance: Double = 999
+
+    // Check which direction is the best based on the closest distance between the ghost & the target point
+    for(d <- Directions.values){
+      val (dx, dy) = Directions.getDeltaByDirection(d)
+      val nextX = x + dx
+      val nextY = y + dy
+
+      if(logical.IsPointInTheMap(nextX, nextY)){
+
+        val nextCase = logical.Map(nextY)(nextX)
+        val isWalkable = nextCase.CaseType == CaseType.Road || (nextCase.CaseType == CaseType.Door && currentRoad.isGhostsSpawn)
+        if (isWalkable){
+          val dist = distanceMap(nextY)(nextX)
+          if (dist < minDistance){
+            minDistance = dist
+            bestDirection = d
+          }
+        }
+      }
+    }
 
     println(s"$this taked decision $direction")
+    direction = bestDirection
   };
 
   def checkRevive(logical: Logical): Boolean = {
@@ -166,6 +178,49 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
       })
     }while(!isPathFound && idx < (mapHeight * mapWidth))
     isWayToHomeCalculated=true
+  }
+
+  // Target at 0, walls at 999. Ghost choose the direction where the case is the lowest of its neighbors
+  private def createDistanceMap(logical: Logical, targetX: Int, targetY: Int): Array[Array[Int]] = {
+    val height = logical.Map.length
+    val width = logical.Map(0).length
+    val distances = Array.fill(height, width)(999)
+
+    distances(targetY)(targetX) = 0
+
+    var hasChanged = true
+    while (hasChanged) {
+      hasChanged = false
+
+      for (y <- 0 until height) {
+        for (x <- 0 until width) {
+          if (logical.Map(y)(x).CaseType != CaseType.Wall) {
+            val currentVal = distances(y)(x)
+            var minNeighbor = 999
+
+            for (dir <- Directions.values) {
+              val (dx, dy) = Directions.getDeltaByDirection(dir)
+              val nx = x + dx
+              val ny = y + dy
+
+              if (logical.IsPointInTheMap(nx, ny)) {
+                val neighborVal = distances(ny)(nx)
+                if (neighborVal < minNeighbor) {
+                  minNeighbor = neighborVal
+                }
+              }
+            }
+
+            if (minNeighbor + 1 < currentVal) {
+              distances(y)(x) = minNeighbor + 1
+              hasChanged = true // so neighbors can have a new value
+            }
+          }
+        }
+      }
+    }
+
+    return distances
   }
 
 }
