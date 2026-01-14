@@ -6,6 +6,7 @@ import Backend.Entities.{Directions, Entity}
 import Backend.Logical
 
 import java.awt.Color
+import java.util.concurrent.{ScheduledThreadPoolExecutor, TimeUnit}
 import scala.collection.mutable.ArrayBuffer
 import scala.math.{pow, sqrt}
 import scala.util.Random
@@ -15,12 +16,31 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
 
   private var isVulnerable: Boolean = false;
   private var isBlinking: Boolean = false;
+  private var mode = GhostsMode.Frightened;
 
   private var wayToHome: Array[Array[Int]] = Array.empty
   private var isWayToHomeCalculated = false;
 
   def IsVulnerable = isVulnerable;
   def IsBlinking = isBlinking;
+  def Mode = if(isVulnerable) GhostsMode.Frightened else mode;
+
+  private val cycleTime = Array.apply(7, 20, 7, 20, 5, 20, 5, -1);
+  private var cycleIdx = 0;
+  private val modeThreadExecutor: ScheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(1);
+  private val modeTask = new Runnable {
+    override def run(): Unit = {
+      val time = cycleTime(cycleIdx);
+      mode = if(cycleIdx % 2 == 0) GhostsMode.Chase else GhostsMode.Scatter
+      if(time > 0) {
+        modeThreadExecutor.schedule(this, time, TimeUnit.SECONDS);
+      }
+      cycleIdx += 1
+    }
+  }
+
+  modeThreadExecutor.execute(modeTask);
+
 
   final override def revive: Unit = {
     super.revive
@@ -124,20 +144,28 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
     )
 
     direction = if(up < current) Directions.Up
-      else if (down < current) Directions.Down
-      else if (left < current) Directions.Left
-      else if (right < current) Directions.Right
-      else direction
+    else if (down < current) Directions.Down
+    else if (left < current) Directions.Left
+    else if (right < current) Directions.Right
+    else direction
   }
 
   def foundPathToHome(logical: Logical): Unit = {
     var isPathFound = false
     val (mapHeight, mapWidth) = (logical.Map.length, logical.Map(0).length);
-    wayToHome  = Array.fill(mapHeight, mapWidth)(500)
+    wayToHome = searchPathTo(logical, logical.GhostsSpawn.map[Case](c => c))
+    isWayToHomeCalculated=true
+  }
+
+  def searchPathTo(logical: Logical, dest: Array[Case]): Array[Array[Int]] = {
+    var isPathFound = false
+    val (mapHeight, mapWidth) = (logical.Map.length, logical.Map(0).length);
+    val res = Array.fill(mapHeight, mapWidth)(500);
+
     var lastCases: ArrayBuffer[Case] = ArrayBuffer.empty;
     var idx = 0;
-    logical.GhostsSpawn.foreach(s => {
-      wayToHome(s.Y)(s.X) = idx;
+    dest.foreach(s => {
+      res(s.Y)(s.X) = idx;
       lastCases += s;
     })
 
@@ -151,14 +179,14 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
           val (vx, vy) = (c.X, c.Y + i)
           if(
             vy >= 0 && vy < mapHeight &&
-            vx >= 0 && vx < mapWidth &&
-              wayToHome(vy)(vx) > idx &&
-            (
-              logical.Map(vy)(vx).CaseType == CaseType.Road ||
-              logical.Map(vy)(vx).CaseType == CaseType.Door
-            )
+              vx >= 0 && vx < mapWidth &&
+              res(vy)(vx) > idx &&
+              (
+                logical.Map(vy)(vx).CaseType == CaseType.Road ||
+                  logical.Map(vy)(vx).CaseType == CaseType.Door
+                )
           ) {
-            wayToHome(vy)(vx) = idx
+            res(vy)(vx) = idx
             lastCases += logical.Map(vy)(vx)
             if(vy == Y && vx == X) {
               isPathFound = true
@@ -168,14 +196,14 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
           val (hx, hy) = (c.X+i, c.Y)
           if(
             hy >= 0 && hy < mapHeight &&
-            hx >= 0 && hx < mapWidth &&
-            wayToHome(hy)(hx) > idx &&
-            (
-              logical.Map(hy)(hx).CaseType == CaseType.Road ||
-              logical.Map(hy)(hx).CaseType == CaseType.Door
-            )
+              hx >= 0 && hx < mapWidth &&
+              res(hy)(hx) > idx &&
+              (
+                logical.Map(hy)(hx).CaseType == CaseType.Road ||
+                  logical.Map(hy)(hx).CaseType == CaseType.Door
+                )
           ) {
-            wayToHome(hy)(hx) = idx
+            res(hy)(hx) = idx
             lastCases += logical.Map(hy)(hx)
             if(hy == Y && hx == X) {
               isPathFound = true
@@ -185,6 +213,7 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
       })
     }while(!isPathFound && idx < (mapHeight * mapWidth))
     isWayToHomeCalculated=true
+    res
   }
 
   // Target at 0, walls at 999. Ghost choose the direction where the case is the lowest of its neighbors

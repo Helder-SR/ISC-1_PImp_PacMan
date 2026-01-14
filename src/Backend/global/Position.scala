@@ -4,6 +4,11 @@ class Position {
   protected var x: Int = -1;
   protected var y: Int = -1;
 
+  def this(x: Int, y: Int) = {
+    this();
+    definePosition(x, y);
+  }
+
   protected def definePosition(x: Int, y: Int): Unit = {
     this.x = x;
     this.y = y;
