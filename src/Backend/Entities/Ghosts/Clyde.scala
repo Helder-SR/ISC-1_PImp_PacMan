@@ -11,21 +11,15 @@ class Clyde extends Ghosts(Color.ORANGE) {
 
   // Targets directly the player if Player is near Clyde
   override def getTarget(logical: Logical): (Int, Int) = {
-    val dist = sqrt(pow(logical.Player.X - this.X, 2) + pow(logical.Player.Y - this.Y, 2))
-    if (dist < 3){
-      (logical.Player.X, logical.Player.Y)
+    if(IsVulnerable){
+      if (Random.nextInt(2) != 0) (logical.Player.X, logical.Player.Y) else randomTarget(logical)
     } else {
-      var x = 0
-      var y = 0
-      var attempts = 0
-
-      do {
-        x = Random.nextInt(logical.Map(0).length)
-        y = Random.nextInt(logical.Map.length)
-        attempts += 1
-      } while (!logical.IsPointInTheMap(x, y) && attempts < 10)
-
-      (x, y)
+      val dist = sqrt(pow(logical.Player.X - this.X, 2) + pow(logical.Player.Y - this.Y, 2))
+      if (dist < 3){
+        (logical.Player.X, logical.Player.Y)
+      } else {
+        randomTarget(logical)
+      }
     }
   }
 }

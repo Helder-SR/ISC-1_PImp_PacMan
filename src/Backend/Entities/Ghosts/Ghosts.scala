@@ -69,6 +69,7 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
 
     var bestDirection: Directions = direction
     var minDistance: Double = 999
+    var maxDistance: Double = -1
 
     // Check which direction is the best based on the closest distance between the ghost & the target point
     for(d <- Directions.values){
@@ -81,10 +82,18 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
         val nextCase = logical.Map(nextY)(nextX)
         val isWalkable = nextCase.CaseType == CaseType.Road || (nextCase.CaseType == CaseType.Door && currentRoad.isGhostsSpawn)
         if (isWalkable){
-          val dist = distanceMap(nextY)(nextX)
-          if (dist < minDistance){
-            minDistance = dist
-            bestDirection = d
+          var dist = distanceMap(nextY)(nextX)
+          if(IsVulnerable){
+            if (dist == 999) dist = -1
+            if (dist > maxDistance){
+              maxDistance = dist
+              bestDirection = d
+            }
+          } else {
+            if (dist < minDistance){
+              minDistance = dist
+              bestDirection = d
+            }
           }
         }
       }
@@ -221,4 +230,17 @@ abstract class Ghosts(val MainColor: Color) extends Entity {
     return distances
   }
 
+  protected def randomTarget(logical: Logical): (Int, Int) = {
+    var x = 0
+    var y = 0
+    var attempts = 0
+
+    do {
+      x = Random.nextInt(logical.Map(0).length)
+      y = Random.nextInt(logical.Map.length)
+      attempts += 1
+    } while (!logical.IsPointInTheMap(x, y) && attempts < 10)
+
+    (x, y)
+  }
 }
