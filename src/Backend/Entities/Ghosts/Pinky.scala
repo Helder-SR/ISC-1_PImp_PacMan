@@ -8,7 +8,7 @@ import scala.util.Random
 class Pinky extends Ghosts(Color.PINK) {
   override def toString: String = "Pinky"
 
-  // Targets directly the player but has 1/4 chance to take a random direction
+  // Targets directly the player but has 1/2 chance to take a random direction
   override def getTarget(logical: Logical): (Int, Int) = {
     if(Random.nextInt(2) != 0) (logical.Player.X, logical.Player.Y)
     else {
