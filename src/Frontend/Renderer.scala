@@ -20,6 +20,7 @@ class Renderer(logical: Logical) {
   var isBlikingCount = 0
   var isBlinkedImage = false
   val BLINKING_RATE = 11 // every x map reload
+  var isGameOverAlreadyDisplayed = false
 
   val display = new FunGraphics(HEIGHT*SpriteManager.SPRITE_SIZE, WIDTH*SpriteManager.SPRITE_SIZE)
 
@@ -68,12 +69,12 @@ class Renderer(logical: Logical) {
   }
 
   def displayGameOver(): Unit = {
-    //display.clear()
-    //display.setColor(Color.BLACK)
-    //display.drawFillRect(0, 0, display.getFrameWidth, display.getFrameHeight)
-  //  display.drawString(display.getFrameWidth/3, display.getFrameHeight/2, s"GAME OVER", "Arial", Font.BOLD, 50, Color.RED)
-    //val gameOverImage = new GraphicsBitmap("gameover.png")
-    display.drawPicture(0, 0, new GraphicsBitmap("src/gameover.jpg"))
+    if(!isGameOverAlreadyDisplayed){
+      display.clear()
+      display.drawPicture(HEIGHT*SpriteManager.SPRITE_SIZE/2, WIDTH*SpriteManager.SPRITE_SIZE/2, new GraphicsBitmap("/screen/gameover.jpg"))
+      isGameOverAlreadyDisplayed = true
+    }
+
   }
 
   private def drawPlayer(player: Player): Unit = {
